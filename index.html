@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Chat Sederhana (Private)</title>
+  <script src="https://cdn.jsdelivr.net/npm/emoji-picker-element"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #d9f0ff;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+    }
+    .chat-container {
+      width: 100%;
+      max-width: 450px;
+      background: white;
+      border-radius: 10px;
+      padding: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    h2 {
+      text-align: center;
+      margin-top: 0;
+      color: #0077cc;
+    }
+    #room, #name {
+      width: 60%;
+      padding: 6px;
+      margin-bottom: 6px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+    #messages {
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      padding: 8px;
+      height: 300px;
+      overflow-y: auto;
+      margin-bottom: 8px;
+      background: #f9f9f9;
+    }
+    .msg {
+      margin-bottom: 8px;
+      padding: 8px 10px;
+      border-radius: 12px;
+      max-width: 70%;
+      word-wrap: break-word;
+      clear: both;
+    }
+    .msg.me {
+      background: #3399ff;
+      color: white;
+      float: right;
+      text-align: right;
+    }
+    .msg.other {
+      background: #f1f1f1;
+      float: left;
+      text-align: left;
+    }
+    #msg {
+      flex: 1;
+      padding: 6px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+    .input-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    button {
+      padding: 6px 10px;
+      border: none;
+      border-radius: 6px;
+      background: #0077cc;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #005fa3;
+    }
+    .controls {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 8px;
+    }
+    emoji-picker {
+      position: absolute;
+      bottom: 60px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="chat-container">
+    <h2>CikurakkeN</h2>
+
+    <!-- Room + Nama -->
+    <input id="room" placeholder="Room / Kode Akses" required autocomplete="off" />
+    <br>
+    <input id="name" placeholder="Nama" required autocomplete="off" />
+
+    <!-- Kotak Pesan -->
+    <div id="messages"></div>
+
+    <!-- Input Pesan -->
+    <div class="input-row">
+      <button id="emojiBtn">😀</button>
+      <textarea id="msg" placeholder="Tulis pesan..." rows="1"></textarea>
+      <button onclick="sendMessage()">Kirim</button>
+    </div>
+
+    <!-- Kontrol -->
+    <div class="controls">
+      <button onclick="clearMessages()">Clear Area</button>
+      <button onclick="loadMessages()">Reload Chat</button>
+    </div>
+
+    <emoji-picker id="emojiPicker"></emoji-picker>
+  </div>
+
+<script>
+  const API_URL = "https://script.google.com/macros/s/AKfycbyW45n5h47KG9a9xEn7uz1-ve0G1obKm-iefh893vYblgeVH2LEUHmF1zXg0eIgVV58/exec"; // ganti dengan URL web app terbaru
+
+  async function sendMessage() {
+    const name = document.getElementById("name").value.trim();
+    const msg = document.getElementById("msg").value.trim();
+    const room = document.getElementById("room").value.trim();
+    if (!room) { alert("Room wajib diisi!"); return; }
+    if (!name) { alert("Nama wajib diisi!"); return; }
+    if (!msg) return;
+
+    await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        action: "add",
+        room,
+        name,
+        message: msg
+      })
+    });
+
+    document.getElementById("msg").value = "";
+    loadMessages();
+  }
+
+  async function loadMessages() {
+    const room = document.getElementById("room").value.trim();
+    if (!room) { alert("Isi Room dulu!"); return; }
+
+    const res = await fetch(API_URL + "?room=" + encodeURIComponent(room));
+    const data = await res.json();
+    const messages = document.getElementById("messages");
+    messages.innerHTML = "";
+
+    const myName = document.getElementById("name").value.trim();
+
+    data.forEach((row) => {
+      const div = document.createElement("div");
+      const isMe = (row.name === myName);
+
+      let timeStr = "";
+      if (row.time) {
+        const d = new Date(row.time);
+        if (!isNaN(d.getTime())) {
+          timeStr = d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+        }
+      }
+
+      div.className = "msg " + (isMe ? "me" : "other");
+      div.innerHTML = `
+        <div>
+          <strong>${row.name}</strong><br>${row.message}
+          <span style="font-size:10px; display:block; margin-top:2px;">${timeStr}</span>
+        </div>
+      `;
+      messages.appendChild(div);
+    });
+    messages.scrollTop = messages.scrollHeight;
+
+    if (!refreshInterval) {
+      refreshInterval = setInterval(loadMessages, 3000);
+    }
+  }
+
+  function clearMessages() {
+    document.getElementById("messages").innerHTML = "";
+  }
+
+  // Emoji Picker
+  const emojiBtn = document.getElementById("emojiBtn");
+  const emojiPicker = document.getElementById("emojiPicker");
+  emojiBtn.addEventListener("click", () => {
+    emojiPicker.style.display = (emojiPicker.style.display === "none" ? "block" : "none");
+  });
+  emojiPicker.addEventListener("emoji-click", (event) => {
+    const msgInput = document.getElementById("msg");
+    msgInput.value += event.detail.unicode;
+  });
+
+  // Enter untuk kirim pesan, Shift+Enter untuk baris baru
+  const msgInput = document.getElementById("msg");
+  msgInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+</script>
+</body>
+</html>
